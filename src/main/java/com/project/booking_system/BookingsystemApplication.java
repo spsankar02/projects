@@ -1,4 +1,4 @@
-package com.Myproject.Bookingsystem;
+package com.project.booking_system;
 
 import org.springframework.boot.SpringApplication;
 
