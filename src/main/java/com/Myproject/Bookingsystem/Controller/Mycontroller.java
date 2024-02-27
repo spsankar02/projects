@@ -5,6 +5,8 @@ import java.util.List;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -114,8 +116,12 @@ public class Mycontroller {
 	}
 
 	@DeleteMapping("/cancelbooking/{bookingid}")
-	public String method15(@PathVariable Long bookingid){
-		return service.deletebooking(bookingid);
+	public ResponseEntity<Object> method15(@PathVariable Long bookingid){
+		try {
+		return ResponseEntity.ok().body(service.deletebooking(bookingid));}
+		catch(IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
 	}
 	
 	
