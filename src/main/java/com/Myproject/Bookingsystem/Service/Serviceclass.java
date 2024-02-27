@@ -131,24 +131,22 @@ public class Serviceclass implements Serviceinterface {
 	        throw new IllegalStateException("User repository is not available");
 	    }
 	}
+	
+	User de;
+	public User passValue(String username) {
+		if(userrepo!=null) {
+	        Optional<User> userOptional = userrepo.findByUserName(username);
+	        de = userOptional.orElseThrow(() -> new IllegalArgumentException("User not found with username: " + username));
+	        return de;
+	    
+		}else {
+			throw new IllegalArgumentException("User repository is not available");
+		}
+	}
 
-	String username;
 	@Override
 	public Movie createMovie(Movie value) {
-//	    try {
-//	    	List<String> roles = getUserRoles(username);
-//	        if (roles.contains("ROLE_ADMIN")) {
-	            if (movierepo != null) {
-	                return movierepo.save(value);
-	            } else {
-	                throw new IllegalStateException("Movie repository is not available");
-	            }
-//	        } else {
-//	            throw new AccessDeniedException("Insufficient privileges to create a movie");
-//	        }
-//	    } catch (AccessDeniedException e) {
-//	        throw new IllegalStateException("User does not have sufficient privileges to create a movie", e);
-//	    }
+	      return movierepo.save(value);
 	}
 
 	
@@ -204,17 +202,7 @@ public class Serviceclass implements Serviceinterface {
 //		return be.get(0);
 //	}
 	
-	User de;
-	public User passValue(String username) {
-		if(userrepo!=null) {
-	        Optional<User> userOptional = userrepo.findByUserName(username);
-	        de = userOptional.orElseThrow(() -> new IllegalArgumentException("User not found with username: " + username));
-	        return de;
-	    
-		}else {
-			throw new IllegalArgumentException("User repository is not available");
-		}
-	}
+
 
 	@Override
 	public Booking createBooking(Booking value) {
@@ -361,9 +349,9 @@ public class Serviceclass implements Serviceinterface {
 	        Ticket ticketInformation = ticketrepo.findByTicketId(te.get(0).getTicketId());
 	        value.setTicketId(ticketInformation);
 	        return seatbookingre.save(value);
-	    } catch (Exception e) {
-	        e.printStackTrace();
-	        throw e; 
+	    } catch (IllegalArgumentException e) {
+	        throw new IllegalArgumentException("Error while creating seatbooking: " + e.getMessage());
+
 	    }
 	}
 	
@@ -387,9 +375,11 @@ public class Serviceclass implements Serviceinterface {
 	    try {
 	        Booking bookingInformation = bookingrepo.findByBookingId(latestBooking.getBookingId());
 	        if (bookingInformation == null) {
-	            throw new IllegalStateException("Booking information not found");}  
+	            throw new IllegalStateException("Booking information not found");
+	        }
 	        if (!value.getPaymentStatus().equalsIgnoreCase("paid")) {
-	            return paymentrepo.save(value);}
+	            throw new IllegalStateException("Your payment is not successful");
+	        }
 	        bookingInformation.setBookingDate(LocalDate.now());
 	        bookingrepo.save(bookingInformation);
 	        List<seatbooking> seatInformation = seatbookingre.findByTicketIdBookingIdBookingId(latestBooking.getBookingId());
@@ -399,9 +389,8 @@ public class Serviceclass implements Serviceinterface {
 	        value.setBookingId(bookingInformation);
 	        value.setAmount(bookingInformation.getTotalCost());
 	        return paymentrepo.save(value);
-	    } catch (Exception e) {
-	        e.printStackTrace();
-	        throw new IllegalStateException("Error creating payment", e);
+	    } catch (IllegalStateException e) {
+	        throw new IllegalStateException(e.getMessage());
 	    }
 	}
 
@@ -647,14 +636,13 @@ public class Serviceclass implements Serviceinterface {
 	                    bookingrepo.deleteById(bookingId);
 	                    return "Booking canceled";
 	                } else {
-	                    return "Cancellation not allowed within 2 hours of showtime.";
+	                    throw new IllegalStateException ("Cancellation not allowed within 2 hours of showtime.");
 	                }
 	            } else {
-	                return "Booking ID not found";
+	                throw new IllegalStateException("Booking ID not found");
 	            }
-	        } catch (Exception e) {
-	            e.printStackTrace();
-	            return "An error occurred while processing the cancellation request.";
+	        } catch (IllegalStateException e) {
+	        	throw new IllegalStateException(e.getMessage());
 	        }
 	    }
 
@@ -682,15 +670,15 @@ public class Serviceclass implements Serviceinterface {
 						List<Payment> payment=paymentrepo.findByBookingIdBookingId(s.getBookingId());
 						payments.addAll(payment);
 					}); 
+					return payments;
 		    	}
 		    	else {
-		    		System.out.println("User has no bookings");
+		    		throw new IllegalStateException("User has no bookings");
 		    	}
 		    }
-		    catch(Exception e) {
-		    	System.err.println("Error finding user bookings: "+e.getMessage());
+		    catch(IllegalStateException e) {
+		    	throw new IllegalStateException(e.getMessage());
 		    }
-			return payments;
 		}
 		
 
@@ -712,7 +700,7 @@ public class Serviceclass implements Serviceinterface {
 			        } else {
 			            throw new IllegalArgumentException("User with Username " + value.getUserName() + " not found");
 			        }
-			    } catch (Exception e) {
+			    } catch (IllegalArgumentException e) {
 			        throw new IllegalStateException("An unexpected error occurred", e);
 			    }
 		}
@@ -733,7 +721,7 @@ public class Serviceclass implements Serviceinterface {
 					throw new IllegalArgumentException("Movie not found");
 				}
 			}
-			catch(Exception e) {
+			catch(IllegalArgumentException e) {
 				throw new IllegalStateException("An unexpected error occurred", e);
 			}
 		}
@@ -759,7 +747,7 @@ public class Serviceclass implements Serviceinterface {
 					throw new IllegalArgumentException("Theatre not found");
 				}
 			}
-			catch(Exception e) {
+			catch(IllegalArgumentException e) {
 				throw new IllegalStateException("An unexpected error occurred", e);
 			}
 		}
@@ -781,7 +769,7 @@ public class Serviceclass implements Serviceinterface {
 					throw new IllegalArgumentException("Show not found");
 				}
 			}
-			catch(Exception e) {
+			catch(IllegalArgumentException e) {
 				throw new IllegalStateException("An unexpected error occurred", e);
 			}		
 		}
@@ -802,13 +790,11 @@ public class Serviceclass implements Serviceinterface {
 					throw new IllegalArgumentException("Seat not found");
 				}
 			}
-			catch(Exception e) {
+			catch(IllegalArgumentException e) {
 				throw new IllegalStateException("An unexpected error occurred", e);
 			}		
 		}
 
-
-	
 
 		public void sendPasswordResetEmail(String email) {
 		    User user = userrepo.findByEmail(email);
@@ -824,7 +810,7 @@ public class Serviceclass implements Serviceinterface {
 		        tokenRepository.save(tokenEntity);
 		        String resetLink = "http://yourdomain.com/resetPassword?token=" + token;
 		        sendEmail(email, "Password Reset", "To reset your password, click the link below:\n" + resetLink);
-		    } catch (Exception e) {
+		    } catch (IllegalArgumentException e) {
 		        throw new IllegalStateException("Error sending password reset email", e);
 		    }
 		}
