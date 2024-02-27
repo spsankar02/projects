@@ -1,6 +1,7 @@
 package com.Myproject.Bookingsystem.Controller;
 
 
+
 import java.util.List;
 
 import java.util.Map;
@@ -56,7 +57,7 @@ public class Usercontroller {
 	private TokenBlacklistService tokenblacklistservice;
 	
 
-
+  
 
 	@GetMapping("/welcome")
 	public String welcome() {
@@ -80,11 +81,17 @@ public class Usercontroller {
 	public Ticket method(@RequestBody Ticket value) {
 		return service.createTicket(value);
 	}
+	
 	@PostMapping("/movie")
-	public ResponseEntity<Movie>  method(@RequestBody Movie value){
+	public ResponseEntity<Object>  method(@RequestBody Movie value) {
+        service.passValue(username);
+        service.createMovie(value);
 		return  ResponseEntity.ok()
-				.body(service.createMovie(value));		
+				.body("Movie details created successfully");
 	}
+	
+
+	
 	@PostMapping("/booking")
 	public ResponseEntity<Object> method(@RequestBody Booking value) {
 	    try {
@@ -95,23 +102,36 @@ public class Usercontroller {
 	        if ("Error while creating booking: Booking closed".equals(e.getMessage())) {
 	            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Booking closed");
 	        } else {
-	            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error occurred: " + e.getMessage());
+	            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
 	        }
 	    }
 	}
 
 	
 	@PostMapping("/userseatbooking")
-	public seatbooking method16(@RequestBody seatbooking value){
+	public ResponseEntity<Object> method16(@RequestBody seatbooking value){
+		try {
 		service.passvalueforseatbooking(username);
-		return service.userseatbooking(value);
+		seatbooking userseatbooking= service.userseatbooking(value);
+		return ResponseEntity.ok().body(userseatbooking);}
+		catch(IllegalArgumentException e) {
+			if(e.getMessage().contains("Error while creating seatbooking: Seat already booked for the specified show")) {
+			    return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Booking closed");	
+			}else {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+		}}
 	}
 	
 	@PostMapping("/payment")
-	public Payment method(@RequestBody Payment value) {
+	public ResponseEntity<Object> method(@RequestBody Payment value) {
+		try {
 		service.passvalueforpayment(username);
-		return service.createPayment(value);
+		service.createPayment(value);
+		return ResponseEntity.ok().body("Your payment is successfull and your seat is booked");}
+		catch(IllegalStateException e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating payment: " +e.getMessage());}
 	}
+	
 	@PostMapping("/findbookingseats")
 	public ResponseEntity<List<Show>> method14(){
 		return ResponseEntity.ok()
@@ -120,34 +140,53 @@ public class Usercontroller {
 
 	
 	@PostMapping("/finduserbookings")
-	public List<Payment> method21(){
+	public ResponseEntity<Object> method21(){
+		try {
 		service.passvalueforuser(username);
-		return service.finduserbookings();
+		service.finduserbookings();
+		return ResponseEntity.ok().body(service.finduserbookings());}
+		catch(IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());}
 	}
 	
 	@PostMapping("/edituser")
-	public User method22(@RequestBody User value) {
-		return service.edituser(value,username);
+	public ResponseEntity<Object> method22(@RequestBody User value) {
+		try {
+		return ResponseEntity.ok().body(service.edituser(value,username));}
+		catch(IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());}
 	}
 	
 	@PostMapping("/editmovie/{movieId}")
-	public Movie method23(@RequestBody Movie value,@PathVariable Long movieId) {
-		return service.editmovie(value,movieId);
+	public ResponseEntity<Object> method23(@RequestBody Movie value,@PathVariable Long movieId) {
+		try {
+		return ResponseEntity.ok().body(service.editmovie(value,movieId));}
+		catch(IllegalStateException e) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());}
 	}
 	
 	@PostMapping("/edittheatre/{theatreId}")
-	public Theatre method24(@RequestBody Theatre value,@PathVariable Long theatreId) {
-		return service.edittheatre(value,theatreId);
+	public ResponseEntity<Object> method24(@RequestBody Theatre value,@PathVariable Long theatreId) {
+		try {
+		return ResponseEntity.ok().body(service.edittheatre(value,theatreId));}
+		catch(IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());}
 	}
 	
 	@PostMapping("/editshow/{showId}")
-	public Show method25(@RequestBody Show value,@PathVariable Long showId) {
-		return service.editshow(value,showId);
+	public ResponseEntity<Object> method25(@RequestBody Show value,@PathVariable Long showId) {
+		try {
+		return ResponseEntity.ok().body(service.editshow(value,showId));}
+		catch(IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());}
 	}
 	
 	@PostMapping("/editseat/{seatId}")
-	public Seat method26(@RequestBody Seat value,@PathVariable Long seatId) {
-		return service.editseat(value,seatId);
+	public ResponseEntity<Object> method26(@RequestBody Seat value,@PathVariable Long seatId) {
+		try {
+		return ResponseEntity.ok().body(service.editseat(value,seatId));}
+		catch(IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());}
 	}
 
 
