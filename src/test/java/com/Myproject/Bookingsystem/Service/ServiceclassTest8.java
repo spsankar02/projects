@@ -1,15 +1,16 @@
 package com.Myproject.Bookingsystem.Service;
-import static org.hamcrest.CoreMatchers.is;
-
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -21,10 +22,9 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
-import org.junit.jupiter.api.BeforeEach;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.InjectMocks;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -36,24 +36,22 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import com.Myproject.Bookingsystem.Controller.Usercontroller;
 import com.Myproject.Bookingsystem.Entity.Booking;
 import com.Myproject.Bookingsystem.Entity.Movie;
+import com.Myproject.Bookingsystem.Entity.Payment;
 import com.Myproject.Bookingsystem.Entity.Show;
+import com.Myproject.Bookingsystem.Entity.Theatre;
 import com.Myproject.Bookingsystem.Entity.Ticket;
 import com.Myproject.Bookingsystem.Entity.User;
 import com.Myproject.Bookingsystem.Entity.seatbooking;
 import com.Myproject.Bookingsystem.Repo.Userrepo;
 import com.Myproject.Bookingsystem.pojo.Userpojo;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 @WebMvcTest(Usercontroller.class)
-@ExtendWith(MockitoExtension.class)
 public class ServiceclassTest8 {
 	@Autowired
     private MockMvc mockMvc;
@@ -65,45 +63,55 @@ public class ServiceclassTest8 {
 	private UserDetails userDetail;
 	@MockBean
     private Userrepo userrepo;
-	@MockBean
+	@InjectMocks
 	private Jwtservice jwtService;
 	@MockBean
 	private Userpojo authrequest;
-
 	@MockBean
 	private AuthenticationManager authenticationManager;
 
-	@BeforeEach
-	void setup() throws Exception {
-	    authrequest = new Userpojo();
-	    authrequest.setUserName("testUser");
-	    authrequest.setPassword("testPassword"); 
-	    when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-	            .thenReturn(new UsernamePasswordAuthenticationToken(authrequest.getUserName(), authrequest.getPassword(), Collections.emptyList()));    
-	    UserDetails userDetails = createUserDetailsWithAuthorities();
-	    when(userDetailsService.loadUserByUsername(authrequest.getUserName())).thenReturn(userDetails);
-	    when(jwtService.generatetoken(authrequest.getUserName())).thenReturn("sampleToken");
-	}
-
-	private UserDetails createUserDetailsWithAuthorities() {
+	private UserDetails createUserDetailsWithUserRole() {
 	    List<GrantedAuthority> authorities = new ArrayList<>();
-	    authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN")); 
 	    authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
 	    return new org.springframework.security.core.userdetails.User("testUser", "testPassword", authorities);
 	}
-	private List<GrantedAuthority> extractAuthoritiesFromUserDetails() {
-	    UserDetails userDetails = userDetailsService.loadUserByUsername(authrequest.getUserName());
-	    return new ArrayList<>(userDetails.getAuthorities());
-	}
 
+	private UserDetails createUserDetailsWithAdminRole() {
+	    List<GrantedAuthority> authorities = new ArrayList<>();
+	    authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+	    return new org.springframework.security.core.userdetails.User("testAdmin", "testPassword", authorities);
+	}
+	private List<GrantedAuthority> extractAuthoritiesFromUserDetails(String username) {
+	    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+	    if ("testUser".equals(username)) {
+	        return new ArrayList<>(userDetails.getAuthorities());
+	    } else if ("testAdmin".equals(username)) {
+	        List<GrantedAuthority> authorities = new ArrayList<>();
+	        authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+	        return authorities;
+	    } else {
+	        return Collections.emptyList(); 
+	    }
+	}
+	
 	private String obtainAccessToken(String username, String password) throws Exception {
+	    authrequest = new Userpojo();
 	    authrequest.setUserName(username);
 	    authrequest.setPassword(password);
+	    System.out.println("token: "+username);
+	    when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+        .thenReturn(new UsernamePasswordAuthenticationToken(authrequest.getUserName(), authrequest.getPassword(), Collections.emptyList()));
+	    UserDetails userDetailsUser = createUserDetailsWithUserRole();
+	    UserDetails userDetailsAdmin = createUserDetailsWithAdminRole();
+	    if(authrequest.getUserName().contains("testUser")) {
+	    when(userDetailsService.loadUserByUsername(username)).thenReturn(userDetailsUser);}
+	    else {when(userDetailsService.loadUserByUsername(username)).thenReturn(userDetailsAdmin);}
 	    ResultActions result = mockMvc.perform(post("/auth/generatetoken")
 	            .contentType(MediaType.APPLICATION_JSON)
 	            .content(asJsonString(authrequest))
 	            .accept(MediaType.APPLICATION_JSON));
 	    String token = result.andReturn().getResponse().getHeader("Authorization");
+	    System.out.println(token);
 	    return token.substring(7);
 	}
 
@@ -112,7 +120,6 @@ public class ServiceclassTest8 {
 		 ObjectMapper objectMapper = new ObjectMapper();
 	        objectMapper.registerModule(new JavaTimeModule()); 
 	        objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false); 
-	        objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL); 
 
 	        return objectMapper.writeValueAsString(obj);    
 	        } catch (Exception e) {
@@ -122,8 +129,8 @@ public class ServiceclassTest8 {
 
     @Test
     public void testWelcomeApi() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.get("/auth/welcome"))
-                .andExpect(MockMvcResultMatchers.status().isOk())
+        mockMvc.perform(get("/auth/welcome"))
+                .andExpect(status().isOk())
                 .andReturn();
     }
     
@@ -139,16 +146,16 @@ public class ServiceclassTest8 {
         user.setPhone("1234567890");
         user.setAddress("123 Main St.");
         user.setRoles("ROLE_USER");
-    	 ObjectMapper objectMapper = new ObjectMapper();
-    	 String userJson = objectMapper.writeValueAsString(user);
+    	
 
        when(userDetailsService.addUser(any(User.class))).thenReturn("User added successfully");
         mockMvc.perform(post("/auth/adduser")
         		.contentType(MediaType.APPLICATION_JSON)
-        		.content(userJson)
+        		.content(asJsonString(user))
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(content().string("User added successfully"));
+                .andExpect(content().string("User added successfully"))
+                .andExpect(jsonPath("$", Matchers.is("User added successfully"))); 
 
         verify(userDetailsService, times(1)).addUser(any(User.class));
         verifyNoMoreInteractions(userDetailsService);
@@ -178,14 +185,10 @@ public class ServiceclassTest8 {
         user2.setAddress("123 Main St.");
         user2.setRoles("ROLE_USER");
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        String user1Json = objectMapper.writeValueAsString(user1);
-        String user2Json = objectMapper.writeValueAsString(user2);
-
         when(userDetailsService.addUser(any(User.class))).thenReturn("User added successfully");
         mockMvc.perform(post("/auth/adduser")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(user1Json)
+                .content(asJsonString(user1))
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().string("User added successfully"));
@@ -193,7 +196,7 @@ public class ServiceclassTest8 {
         when(userDetailsService.addUser(any(User.class))).thenReturn("Username already exists");
         mockMvc.perform(post("/auth/adduser")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(user2Json)
+                .content(asJsonString(user2))
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Username already exists"));
@@ -215,28 +218,45 @@ public class ServiceclassTest8 {
 
         when(service.createMovie(any(Movie.class))).thenReturn(movie);
         
-        String token = obtainAccessToken(authrequest.getUserName(), authrequest.getPassword());
+        String token = obtainAccessToken("testAdmin", "password");
 
         mockMvc.perform(post("/auth/movie")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + token)
-                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails()))
+                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
                 .content(asJsonString(movie))
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.movieId", is(1)))
-                .andExpect(jsonPath("$.title", is("Test Movie")))
-                .andExpect(jsonPath("$.certificate", is("U")))
-                .andExpect(jsonPath("$.languages", is("English")))
-                .andExpect(jsonPath("$.genre", is("Action")))
-                .andExpect(jsonPath("$.duration", is("2 hours")));
-
+                .andExpect(content().string("Movie details created successfully"));
         verify(service, times(1)).createMovie(any(Movie.class));
     }
     
+    @Test
+    public void testCreateMovie_UnauthorizedAccess() throws Exception {
+        Movie movie = new Movie();
+        movie.setMovieId(1L);
+        movie.setTitle("Test Movie");
+        movie.setCertificate("U");
+        movie.setLanguages("English");
+        movie.setGenre("Action");
+        movie.setDuration("2 hours");
+        when(service.createMovie(any(Movie.class))).thenReturn(movie);
+        String token = obtainAccessToken("testUser", "password");
+
+        mockMvc.perform(post("/auth/movie")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + token)
+                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
+                .content(asJsonString(movie))
+                .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
+
+        verify(service, never()).createMovie(any(Movie.class));
+    }
+
     
     @Test
-    void testCreateBooking() throws Exception {
+    public void testCreateBooking() throws Exception {
         Booking bookingRequest = new Booking();
         bookingRequest.setBookingId(1L);
         bookingRequest.setBookingDate(LocalDate.of(2024, 2, 22));
@@ -250,11 +270,11 @@ public class ServiceclassTest8 {
         bookingRequest.setShowId(show);
 
         when(service.createBooking(any(Booking.class))).thenReturn(bookingRequest);
-        String token = obtainAccessToken(authrequest.getUserName(), authrequest.getPassword());
+        String token = obtainAccessToken("testUser", "password");
         mockMvc.perform(post("/auth/booking")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + token)
-                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails()))
+                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
                 .content(asJsonString(bookingRequest)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -274,11 +294,11 @@ public class ServiceclassTest8 {
         bookingRequest.setShowId(new Show());
         
         when(service.createBooking(any(Booking.class))).thenThrow(new IllegalArgumentException("Error while creating booking: Booking closed"));
-        String token = obtainAccessToken(authrequest.getUserName(), authrequest.getPassword());
+        String token = obtainAccessToken("testUser","password");
         mockMvc.perform(post("/auth/booking")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + token)
-                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails()))
+                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
                 .content(asJsonString(bookingRequest)))
                 .andExpect(status().isForbidden())
                 .andExpect(content().string("Booking closed"));
@@ -291,16 +311,202 @@ public class ServiceclassTest8 {
         seatBooking.setPrice(100);       
         when(service.passvalueforseatbooking(any(String.class))).thenReturn(ticket);
         when(service.userseatbooking(any(seatbooking.class))).thenReturn(seatBooking);
-        String token = obtainAccessToken(authrequest.getUserName(), authrequest.getPassword());
+        String token = obtainAccessToken("testUser", "password");
 
         mockMvc.perform(post("/auth/userseatbooking")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + token)
-                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails()))
+                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
                 .content(asJsonString(seatBooking)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.seatId").value(seatBooking.getSeatId()));
-                //.andExpect(jsonPath("$.bookingstatus").value("booking"));
-
     }
+    
+    @Test
+    public void testBookingClosed() throws Exception {
+
+        seatbooking seatBooking = new seatbooking();
+        Ticket ticket = new Ticket();
+        seatBooking.setPrice(100);       
+        when(service.passvalueforseatbooking(any(String.class))).thenReturn(ticket);
+        when(service.userseatbooking(any(seatbooking.class)))
+        .thenThrow(new IllegalArgumentException("Error while creating seatbooking: Seat already booked for the specified show"));
+        String token = obtainAccessToken("testUser", "password");
+
+        mockMvc.perform(post("/auth/userseatbooking")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + token)
+                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
+                .content(asJsonString(seatBooking))) 
+                .andExpect(status().isForbidden()); 
+    }
+    
+    @Test
+    public void testPaymentSuccess() throws Exception {
+        Payment payment = new Payment();
+        when(service.passvalueforpayment("username")).thenReturn(new Booking());
+        payment.setPaymentStatus("paid");
+        when(service.createPayment(any(Payment.class))).thenReturn(payment);
+        String token = obtainAccessToken("testUser", "password");
+        mockMvc.perform(post("/auth/payment")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + token)
+                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
+                .content(asJsonString(payment)))                 
+        		.andExpect(status().isOk())
+                .andExpect(content().string("Your payment is successfull and your seat is booked"));
+    }
+    
+    @Test
+    public void testPaymentFailure() throws Exception {
+        Payment payment = new Payment();
+        when(service.passvalueforpayment("username")).thenReturn(new Booking());
+        payment.setPaymentStatus("not paid");
+        when(service.createPayment(any())).thenThrow(new IllegalStateException("Your payment is not successful"));
+        String token = obtainAccessToken("testUser", "password");
+
+        mockMvc.perform(post("/auth/payment")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + token)
+                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
+                .content(asJsonString(payment)))                 
+        		.andExpect(status().isInternalServerError()) 
+                .andExpect(content().string("Error creating payment: Your payment is not successful")); 
+    }
+    
+    @Test
+    public void testFindBookingSeats() throws Exception {
+        List<Show> shows = new ArrayList<>();
+        Show show = new Show();
+        shows.add(show);
+        when(service.findbookingseats()).thenReturn(shows);
+        String token = obtainAccessToken("testAdmin", "password");
+        mockMvc.perform(post("/auth/findbookingseats")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + token)
+                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
+                .accept(MediaType.APPLICATION_JSON))
+        		.andExpect(status().isOk())
+        		.andExpect(jsonPath("$[0].showId").value(show.getShowId()))
+        		.andExpect(jsonPath("$[0].availableSeats").value(show.getAvailableSeats()))
+        		.andExpect(jsonPath("$[0].reservedSeats").value(show.getReservedSeats()));
+        verify(service, times(1)).findbookingseats();
+    }
+    
+    @Test
+    public void testFindBookingSeats_AccessDenied() throws Exception {
+    	String token=obtainAccessToken("testUser","password");
+    	mockMvc.perform(post("/auth/findbookingseats")
+              .contentType(MediaType.APPLICATION_JSON)
+              .header("Authorization", "Bearer " + token)
+              .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
+              .accept(MediaType.APPLICATION_JSON))
+    		  .andExpect(status().isForbidden());
+    }
+    
+    @Test
+    public void testEditUser_Success() throws Exception {
+        User user = new User();
+
+        when(service.edituser(any(User.class), anyString())).thenReturn(user);
+    	String token=obtainAccessToken("testUser","password");
+        mockMvc.perform(post("/auth/edituser")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + token)
+                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
+                .content(asJsonString(user)))
+                .andExpect(status().isOk());
+    }
+     
+    @Test
+    public void testEditUser_UserNotFound() throws Exception {
+        User user = new User();
+        when(service.edituser(any(User.class), anyString())).thenThrow(new IllegalStateException("User not found"));
+        String token=obtainAccessToken("testUser","password");
+        mockMvc.perform(post("/auth/edituser")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + token)
+                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
+                .content(asJsonString(user)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("User not found"));
+    }
+    
+    @Test
+    public void testEditTheatre_Success() throws Exception {
+        Theatre theatre = new Theatre();
+        Long theatreId = 1L;
+
+        when(service.edittheatre(any(Theatre.class), anyLong())).thenReturn(theatre);
+        String token=obtainAccessToken("testAdmin","password");
+        mockMvc.perform(post("/auth/edittheatre/{theatreId}", theatreId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + token)
+                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
+                .content(asJsonString(theatre)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testEditTheatre_TheatreNotFound() throws Exception {
+        Theatre theatre = new Theatre();
+        Long theatreId = 1L;
+
+        when(service.edittheatre(any(Theatre.class), anyLong())).thenThrow(new IllegalStateException("Theatre not found"));
+        String token=obtainAccessToken("testAdmin","password");
+        mockMvc.perform(post("/auth/edittheatre/{theatreId}", theatreId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + token)
+                .with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
+                .content(asJsonString(theatre)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("Theatre not found"));
+    }
+    
+    @Test
+    public void testCancelBooking_Success() throws Exception {
+        Long bookingId = 1L;
+        when(service.deletebooking(anyLong())).thenReturn("Booking canceled");
+        String token=obtainAccessToken("testUser","password");
+        
+        mockMvc.perform(delete("/api/booking_system/cancelbooking/{bookingid}", bookingId)
+        		.contentType(MediaType.APPLICATION_JSON)
+        		.header("Authorization", "Bearer " + token)
+        		.with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
+        		.accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Booking canceled"));
+    }
+
+    @Test
+    public void testCancelBooking_BookingNotFound() throws Exception {
+        Long bookingId = 1L;
+        when(service.deletebooking(anyLong())).thenThrow(new IllegalStateException("Booking ID not found"));
+        String token=obtainAccessToken("testUser","password");
+        
+        mockMvc.perform(delete("/api/booking_system/cancelbooking/{bookingid}", bookingId)
+        		.contentType(MediaType.APPLICATION_JSON)
+        		.header("Authorization", "Bearer " + token)
+        		.with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
+        		.accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(content().string("Booking ID not found"));
+    }
+
+    @Test
+    public void testCancelBooking_CancellationNotAllowed() throws Exception {
+        Long bookingId = 1L;
+
+        when(service.deletebooking(anyLong())).thenThrow(new IllegalStateException("Cancellation not allowed within 2 hours of showtime."));
+        String token=obtainAccessToken("testUser","password");
+        
+        mockMvc.perform(delete("/api/booking_system/cancelbooking/{bookingid}", bookingId)
+        		.contentType(MediaType.APPLICATION_JSON)
+        		.header("Authorization", "Bearer " + token)
+        		.with(user(authrequest.getUserName()).authorities(extractAuthoritiesFromUserDetails(authrequest.getUserName())))
+        		.accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(content().string("Cancellation not allowed within 2 hours of showtime."));
+    }
+       
 }
